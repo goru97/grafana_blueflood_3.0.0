@@ -1,0 +1,41 @@
+<div ng-include="httpConfigPartialSrc"></div>
+
+<br>
+
+<h5>Blueflood Query URL.</h5>
+<div class="tight-form">
+    <ul class="tight-form-list">
+        <li class="tight-form-item">
+            URL
+        </li>
+        <li>
+            <input type="text" class="tight-form-input input-large" ng-model='ctrl.current.jsonData.bfUrl' placeholder=""/>
+        </li>
+        <li class="tight-form-item">
+            Tenant ID
+        </li>
+        <li>
+            <input type="text" class="tight-form-input input-large" ng-model='ctrl.current.jsonData.bfTenantID' placeholder=""/>
+        </li>
+        </ul>
+    <div class="clearfix"></div>
+</div>
+<br>
+<h5>Rackspace Credentials (Used only with Rackspace Metrics).</h5>
+<div class="tight-form">
+    <ul class="tight-form-list">
+        <li class="tight-form-item">
+            Rax User Name
+        </li>
+        <li>
+            <input type="text" class="tight-form-input input-large" ng-model='ctrl.current.jsonData.raxUserName' placeholder=""/>
+        </li>
+        <li class="tight-form-item">
+            Rax API Key
+        </li>
+        <li>
+            <input type="password" class="tight-form-input input-large" ng-model='ctrl.current.jsonData.raxApiKey' placeholder=""/>
+        </li>
+    </ul>
+    <div class="clearfix"></div>
+</div>
