@@ -140,11 +140,19 @@ export class BluefloodDatasource {
     }
 
     query (options) {
-        var from = Math.ceil(dateMath.parse(options.rangeRaw.from)),
-            to = Math.ceil(dateMath.parse(options.rangeRaw.to)),
-            resolution = this.queryHelper.calculateResolution(from/1000, to/1000),
+        var from = Math.ceil(dateMath.parse(options.rangeRaw.from)) - (60*1000),
+            to = Math.ceil(dateMath.parse(options.rangeRaw.to)) + (60*1000),
+            start_time = Math.floor(from/1000),
+            end_time = Math.floor(to/1000),
+            resolution = this.queryHelper.calculateResolution(start_time, end_time),
+            step = this.queryHelper.secs_per_res[resolution],
+            real_end_time = end_time+step,
             metric_promises = [],
             metric_payload = [];
+            alert(start_time);
+            alert(end_time);
+            alert(resolution);
+            alert(real_end_time);
 
         var doFindQuery = function(target, self){
             var d = self.q.defer();
@@ -165,9 +173,102 @@ export class BluefloodDatasource {
                                    data: metric_payload}).then(function(results){
                     alert(JSON.stringify(results));
                 })*/
+                var response = this.queryHelper.response; //TODO:Use the actual response from the above request
+                response.metrics.forEach(metric => {
+                    var result = this.processMetricValues(metric, start_time, real_end_time, step);
+                    alert(JSON.stringify(result));
+                }) //TODO: Make it asynchronous
                 alert(JSON.stringify(metric_payload));
             }
         }));
+    }
+
+    processMetricValues(metric, start_time, end_time, step){
+        var key = metric.metric,
+            values = metric.data,
+            v_iter = values,
+            ret_arr = [],
+            current_fixup = null,
+            fixup_list = [];
+        this.range(start_time, end_time, step).forEach(ts =>{
+            while(this.current_datapoint_passed(v_iter, ts)){
+                v_iter = v_iter.slice(1, v_iter.length);
+            }
+            if (this.current_datapoint_valid(v_iter, ts, step)){
+                ret_arr.push(v_iter[0].average);
+                if (current_fixup !== null){
+                    fixup_list.push([current_fixup, ret_arr.length - 1]);
+                    current_fixup =null;
+                }
+            }
+            else{
+                var l = ret_arr.length
+                if (l > 0 && typeof ret_arr[l - 1] !== null){
+                    current_fixup = l-1;
+                    ret_arr.push(null);
+                }
+            }
+        })
+        this.fixup(ret_arr, fixup_list);
+        return ret_arr;
+    }
+
+    current_datapoint_passed(v_iter, ts){
+        if(typeof v_iter === 'undefined' || v_iter.length === 0){
+           return false;
+        }
+        var datapoint_ts = (v_iter[0].timestamp)/1000;
+        if (ts > datapoint_ts){
+            return true;
+        }
+        return false;
+    }
+
+    current_datapoint_valid(v_iter, ts, step){
+        if(typeof v_iter === 'undefined' || v_iter.length === 0){
+            return false;
+        }
+        var datapoint_ts = (v_iter[0].timestamp)/1000;
+        if (datapoint_ts < (ts + step)){
+            return true;
+        }
+        return false;
+    }
+
+    fixup(values, fixup_list){
+        fixup_list.forEach(f => {
+            var start = f[0],
+                end = f[1],
+                increment = (values[end] - values[start])/(end - start),
+                nextval = values[start];
+            this.range(start + 1, end).forEach(x => {
+                nextval += increment;
+                values[x] = nextval
+            })
+        })
+    }
+
+    range(start, stop, step) {
+        if (typeof stop == 'undefined') {
+            // one param defined
+            stop = start;
+            start = 0;
+        }
+
+        if (typeof step == 'undefined') {
+            step = 1;
+        }
+
+        if ((step > 0 && start >= stop) || (step < 0 && start <= stop)) {
+            return [];
+        }
+
+        var result = [];
+        for (var i = start; step > 0 ? i < stop : i > stop; i += step) {
+            result.push(i);
+        }
+
+        return result;
     }
 
     doAPIRequest(options, token) {
@@ -180,7 +281,7 @@ export class BluefloodDatasource {
             method: options.method,
             headers: headers
         };
-        if(options.data !== 'undefined'){
+        if(typeof options.data !== 'undefined'){
             httpOptions.data = options.data;
         }
         return this.backendSrv.datasourceRequest(httpOptions);
