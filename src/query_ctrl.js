@@ -2,6 +2,7 @@ import {QueryCtrl} from 'app/plugins/sdk';
 import './graphite_src/add_graphite_func';
 import './graphite_src/func_editor';
 import moment from 'moment';
+import _ from 'lodash';
 import gfunc from './graphite_src/gfunc';
 import {Parser} from './graphite_src/parser';
 

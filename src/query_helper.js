@@ -4363,8 +4363,7 @@ export class QueryHelper {
                 average: 0.0
             }],
             "type": "number"
-        }]
-    }
+        }]}
     }
 
     calculateResolution(start, stop){
@@ -4394,5 +4393,101 @@ export class QueryHelper {
         return res
     }
 
-    
+    range(start, stop, step)
+    {
+        if (typeof stop == 'undefined') {
+            // one param defined
+            stop = start;
+            start = 0;
+        }
+
+        if (typeof step == 'undefined') {
+            step = 1;
+        }
+
+        if ((step > 0 && start >= stop) || (step < 0 && start <= stop)) {
+            return [];
+        }
+
+        var result = [];
+        for (var i = start; step > 0 ? i < stop : i > stop; i += step) {
+            result.push(i);
+        }
+
+        return result;
+    }
+
+    fixup(values, fixup_list)
+    {
+        fixup_list.forEach(f => {
+            var start = f[0],
+                end = f[1],
+                increment = (values[end] - values[start]) / (end - start),
+                nextval = values[start];
+            this.range(start + 1, end).forEach(x => {
+                nextval += increment;
+                values[x] = nextval
+            })
+        })
+    }
+
+    current_datapoint_passed(v_iter, ts)
+    {
+        if (typeof v_iter === 'undefined' || v_iter.length === 0) {
+            return false;
+        }
+        var datapoint_ts = (v_iter[0].timestamp) / 1000;
+        if (ts > datapoint_ts) {
+            return true;
+        }
+        return false;
+    }
+
+    current_datapoint_valid(v_iter, ts, step)
+    {
+        if (typeof v_iter === 'undefined' || v_iter.length === 0) {
+            return false;
+        }
+        var datapoint_ts = (v_iter[0].timestamp) / 1000;
+        if (datapoint_ts < (ts + step)) {
+            return true;
+        }
+        return false;
+    }
+
+    processValues(values, start_time, end_time, step)
+    {
+        var v_iter = values,
+            val_arr = [],
+            ts_arr = [],
+            current_fixup = null,
+            fixup_list = [];
+
+        ts_arr = this.range(start_time, end_time, step);
+        ts_arr.forEach(ts => {
+            while (this.current_datapoint_passed(v_iter, ts)) {
+                v_iter = v_iter.slice(1, v_iter.length);
+            }
+            if (this.current_datapoint_valid(v_iter, ts, step)) {
+                val_arr.push(v_iter[0].average);
+                if (current_fixup !== null) {
+                    fixup_list.push([current_fixup, val_arr.length - 1]);
+                    current_fixup = null;
+                }
+            }
+            else {
+                var l = val_arr.length
+                if (l > 0 && typeof val_arr[l - 1] !== null) {
+                    current_fixup = l - 1;
+                    val_arr.push(null);
+                }
+            }
+        })
+        this.fixup(val_arr, fixup_list);
+
+        var ret_arr = val_arr.map(function (e, i) {
+            return [val_arr[i], ts_arr[i] * 1000];
+        });
+        return ret_arr;
+    }
 }
