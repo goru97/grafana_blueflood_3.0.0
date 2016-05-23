@@ -18,7 +18,7 @@ export class BluefloodDatasource {
         this.backendSrv = backendSrv;
         this.identityURL = "https://identity.api.rackspacecloud.com/v2.0/tokens";
         this.username = instanceSettings.jsonData.raxUserName;
-        this.apikey = instanceSettings.jsonData.raxApikey;
+        this.apikey = instanceSettings.jsonData.raxApiKey;
         this.reposeAPI = new ReposeAPI(this.identityURL, this.username, this.apikey);
         this.queryHelper = new QueryHelper();
         this.useMultiEP = true;
@@ -166,11 +166,10 @@ export class BluefloodDatasource {
 
     doAPIRequest(options)
     {
-        var headers = {'Content-Type': 'application/json'};
         var httpOptions = {
             url: this.url + '/v2.0/' + this.tenantID + options.url,
             method: options.method,
-            headers: headers
+            headers: {'Content-Type': 'application/json'}
         };
         if (typeof options.data !== 'undefined') {
             httpOptions.data = options.data;
@@ -180,16 +179,16 @@ export class BluefloodDatasource {
             var d = this.q.defer(),
                 token = this.reposeAPI.getToken();
             if (typeof token !== 'undefined') {
-                headers['X-Auth-Token'] = token.id
+                httpOptions.headers['X-Auth-Token'] = token.id
             }
             this.backendSrv.datasourceRequest(httpOptions).then(angular.bind(this, function (response) {
                 if (response.status === 401) {  //Retry if token is expired
                     token = this.reposeAPI.getIdentity();
                     if (typeof token !== 'undefined') {
-                        headers['X-Auth-Token'] = token.id
+                        httpOptions.headers['X-Auth-Token'] = token.id
                     }
                     this.backendSrv.datasourceRequest(httpOptions).then(angular.bind(this, function (response) {
-                        if (response.status / 100 === 4 || response.status === 500) {
+                        if (response.status / 100 === 4 || response.status === 500) { //TODO: Use math.floor
                             d.reject(err);
                         }
                         d.resolve(response);
